@@ -6,5 +6,6 @@ sealed class CalculatorAction {
     data object Delete: CalculatorAction()
     data object Decimal: CalculatorAction()
     data object Calculate: CalculatorAction()
+    data object Ounce: CalculatorAction()
     data class Operation(val operation: CalculatorOperation): CalculatorAction()
 }

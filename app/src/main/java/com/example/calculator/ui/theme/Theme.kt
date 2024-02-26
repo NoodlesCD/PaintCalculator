@@ -16,13 +16,16 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = CalcBackground,
+    secondary = ButtonLightGrey,
+    tertiary = ButtonGreen,
+    onSurface = ButtonDarkGrey,
+    background = CalcBackground
+
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
+    primary = CalcBackground,
     secondary = PurpleGrey40,
     tertiary = Pink40
 
@@ -57,7 +60,7 @@ fun CalculatorTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            window.statusBarColor = CalcBackground.toArgb() //colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
         }
     }

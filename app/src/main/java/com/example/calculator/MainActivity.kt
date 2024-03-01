@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,11 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -48,6 +52,7 @@ import com.example.calculator.ui.theme.ButtonLightGrey
 import com.example.calculator.ui.theme.ButtonRed
 import com.example.calculator.ui.theme.CalcBackground
 import com.example.calculator.ui.theme.CalculatorTheme
+import com.example.calculator.ui.theme.OunceBlue
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,7 +66,6 @@ class MainActivity : ComponentActivity() {
                 Calculator(
                     state = state,
                     onAction = viewModel::onAction,
-                    onTextFieldUpdate = viewModel::textFieldInput,
                     buttonSpacing = buttonSpacing,
                     modifier = Modifier
                         .fillMaxSize()
@@ -78,12 +82,7 @@ fun Calculator(
     modifier: Modifier = Modifier,
     buttonSpacing: Dp = 8.dp,
     onAction: (CalculatorAction) -> Unit,
-    onTextFieldUpdate: (string: String) -> Unit,
 ) {
-    val inputStyle = MaterialTheme.typography.bodyLarge
-    var resizedTextStyle by remember {
-        mutableStateOf(inputStyle)
-    }
     var shouldDraw by remember { mutableStateOf(false) }
 
     Box(
@@ -97,11 +96,27 @@ fun Calculator(
             verticalArrangement = Arrangement.spacedBy(buttonSpacing)
         ) {
             Text(
-                text = state.input,
+                buildAnnotatedString {
+                        for (char in state.input) {
+                            if (char in listOf('+', '-', 'x', '/', )) {
+                                withStyle(style = SpanStyle(color = ButtonGreen, fontSize = state.inputFontSize)) {
+                                    append(char)
+                                }
+                            } else if (char == 'y') {
+                                withStyle(style = SpanStyle(color = OunceBlue, fontSize = state.inputFontSize)) {
+                                    append(char)
+                                }
+                            } else {
+                                withStyle(style = SpanStyle(color = Color.White, fontSize = state.inputFontSize)) {
+                                    append(char)
+                                }
+                            }
+                        }
+
+                },
                 textAlign = TextAlign.End,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp)
                     .drawWithContent {
                         if (shouldDraw) {
                             drawContent()
@@ -109,29 +124,76 @@ fun Calculator(
                     },
                 maxLines = 1, // modify to fit your need
                 overflow = TextOverflow.Visible,
-                style = resizedTextStyle,
                 onTextLayout = {
                     if (it.hasVisualOverflow) {
-                        resizedTextStyle = resizedTextStyle.copy(
-                            fontSize = resizedTextStyle.fontSize * 0.95
-                        )
+                        onAction(CalculatorAction.ReduceFontSize)
                     } else {
                         shouldDraw = true
                     }
-                },
-                color = Color.White,
+                }
             )
             Text(
                 text = state.result,
                 textAlign = TextAlign.End,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 32.dp),
                 fontWeight = FontWeight.Light,
                 fontSize = 40.sp,
-                color = Color.White,
-                maxLines = 2
+                color = Color.Gray,
+                maxLines = 2,
+                modifier = Modifier
+                    .padding(vertical = 20.dp)
+                    .fillMaxWidth()
             )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(vertical = 30.dp)
+                    .fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "oz:",
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp),
+                        color = Color.White
+                    )
+                    Text(
+                        text = "48",
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp)
+                            .clickable { onAction(CalculatorAction.SetOunces(48)) },
+                        color = if (state.ounces == 48) {
+                            Color.White
+                        } else {
+                            Color.Gray
+                        }
+                    )
+                    Text(
+                        text = "64",
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp)
+                            .clickable { onAction(CalculatorAction.SetOunces(64)) },
+                        color = if (state.ounces == 64) {
+                            Color.White
+                        } else {
+                            Color.Gray
+                        }
+                    )
+                }
+                Text(
+                    text = "⌫",
+                    fontSize = 30.sp,
+                    modifier = Modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { onAction(CalculatorAction.Delete) },
+                    color = ButtonGreen
+                )
+            }
 
             Divider(
                 thickness = 1.dp,
@@ -145,7 +207,7 @@ fun Calculator(
                 horizontalArrangement = Arrangement.spacedBy(buttonSpacing)
             ) {
                 CalculatorButton(
-                    symbol = "C",
+                    symbol = "AC",
                     color = ButtonRed,
                     modifier = Modifier
                         .aspectRatio(2f)
@@ -156,14 +218,14 @@ fun Calculator(
                     }
                 )
                 CalculatorButton(
-                    symbol = "⌫",
+                    symbol = "( )",
                     color = ButtonGreen,
                     modifier = Modifier
                         .aspectRatio(1f)
                         .weight(1f)
                         .background(ButtonLightGrey),
                     onClick = {
-                        onAction(CalculatorAction.Delete)
+                        onAction(CalculatorAction.Bracket)
                     }
                 )
                 CalculatorButton(

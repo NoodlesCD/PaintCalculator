@@ -1,11 +1,22 @@
 package com.example.calculator
 
+/**
+ * A class to represent a paint formula.
+ * Formulas are typically in a form such as 12y32.
+ * 12y represents 12 ounces.
+ * 32 represents either 32/48th or 32/64th of an ounce depending on [ounceSetting]
+ * [numericalValue] converts each 1y into a value of either 48 or 64, plus the remaining fraction.
+ * In the case of 1y10 with an [ounceSetting] of 64, this would result in 74. (64 + 10).
+ *
+ * [stringValue] represents the written formula (such as 12y32)
+ * [ounceSetting] can either be 48 or 64, depending on the scenario.
+ */
 class Formula(
     numericalValue: Double = 0.0,
     stringValue: String = "",
+    val ounceSetting: Int = 64,
 ) {
-    private var ounceSetting: Int = 64
-    val numericalValue: Double = if (numericalValue > 0) {
+    private val numericalValue: Double = if (numericalValue > 0) {
         numericalValue
     } else {
         stringToNum(stringValue)
@@ -13,8 +24,8 @@ class Formula(
 
     val stringValue: String = stringValue.ifBlank {
         when {
-            numericalValue % 64.0 == 0.0 -> "${(numericalValue / ounceSetting).toInt()}y"
-            numericalValue > 64 -> {
+            numericalValue % ounceSetting.toDouble() == 0.0 -> "${(numericalValue / ounceSetting).toInt()}y"
+            numericalValue > ounceSetting -> {
                 if ((numericalValue % ounceSetting).toString().contains(".0")) {
                     "${(numericalValue / ounceSetting).toInt()}y${(numericalValue % ounceSetting).toInt()}"
                 } else {

@@ -61,6 +61,7 @@ fun CalculatorTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = CalcBackground.toArgb() //colorScheme.primary.toArgb()
+            window.navigationBarColor = CalcBackground.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
         }
     }

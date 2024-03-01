@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,9 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -55,6 +61,7 @@ class MainActivity : ComponentActivity() {
                 Calculator(
                     state = state,
                     onAction = viewModel::onAction,
+                    onTextFieldUpdate = viewModel::textFieldInput,
                     buttonSpacing = buttonSpacing,
                     modifier = Modifier
                         .fillMaxSize()
@@ -70,8 +77,15 @@ fun Calculator(
     state: CalculatorState,
     modifier: Modifier = Modifier,
     buttonSpacing: Dp = 8.dp,
-    onAction: (CalculatorAction) -> Unit
+    onAction: (CalculatorAction) -> Unit,
+    onTextFieldUpdate: (string: String) -> Unit,
 ) {
+    val inputStyle = MaterialTheme.typography.bodyLarge
+    var resizedTextStyle by remember {
+        mutableStateOf(inputStyle)
+    }
+    var shouldDraw by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
     ) {
@@ -83,13 +97,38 @@ fun Calculator(
             verticalArrangement = Arrangement.spacedBy(buttonSpacing)
         ) {
             Text(
-                text = state.number1 + (state.operation?.symbol ?: "") + state.number2,
+                text = state.input,
+                textAlign = TextAlign.End,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp)
+                    .drawWithContent {
+                        if (shouldDraw) {
+                            drawContent()
+                        }
+                    },
+                maxLines = 1, // modify to fit your need
+                overflow = TextOverflow.Visible,
+                style = resizedTextStyle,
+                onTextLayout = {
+                    if (it.hasVisualOverflow) {
+                        resizedTextStyle = resizedTextStyle.copy(
+                            fontSize = resizedTextStyle.fontSize * 0.95
+                        )
+                    } else {
+                        shouldDraw = true
+                    }
+                },
+                color = Color.White,
+            )
+            Text(
+                text = state.result,
                 textAlign = TextAlign.End,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 32.dp),
                 fontWeight = FontWeight.Light,
-                fontSize = 80.sp,
+                fontSize = 40.sp,
                 color = Color.White,
                 maxLines = 2
             )

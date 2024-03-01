@@ -5,7 +5,7 @@ class Formula(
     stringValue: String = "",
 ) {
     private var ounceSetting: Int = 64
-    private val numericalValue: Double = if (numericalValue > 0) {
+    val numericalValue: Double = if (numericalValue > 0) {
         numericalValue
     } else {
         stringToNum(stringValue)
@@ -13,7 +13,7 @@ class Formula(
 
     val stringValue: String = stringValue.ifBlank {
         when {
-            numericalValue == 64.0 -> "${(numericalValue / ounceSetting).toInt()}y"
+            numericalValue % 64.0 == 0.0 -> "${(numericalValue / ounceSetting).toInt()}y"
             numericalValue > 64 -> {
                 if ((numericalValue % ounceSetting).toString().contains(".0")) {
                     "${(numericalValue / ounceSetting).toInt()}y${(numericalValue % ounceSetting).toInt()}"
@@ -60,4 +60,11 @@ class Formula(
         }
     }
 
+    fun numericalStringValue(): String {
+        return if (numericalValue.toString().contains(".0")) {
+            "${numericalValue.toInt()}"
+        } else {
+            "$numericalValue"
+        }
+    }
 }

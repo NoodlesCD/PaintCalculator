@@ -1,10 +1,10 @@
 package com.example.calculator
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import com.temobard.equationsolver.parsers.PostfixParser
 
 class CalculatorViewModel: ViewModel() {
 
@@ -23,116 +23,134 @@ class CalculatorViewModel: ViewModel() {
         }
     }
 
-    private fun enterNumber(number: Int) {
-        if (state.operation == null) {
-            if (state.number1.length >= MAX_NUM_LENGTH) return
-
-            state = state.copy(
-                number1 = state.number1 + number
-            )
-            return
-        }
-
-        if (state.number2.length >= MAX_NUM_LENGTH) return
-
+    fun textFieldInput(string: String) {
         state = state.copy(
-            number2 = state.number2 + number
+            input = string
         )
     }
 
+    private fun enterNumber(number: Int) {
+        if (state.input.length >= MAX_NUM_LENGTH) return
+
+        state = state.copy(
+            input = state.input + number
+        )
+        performCalculation(finalCalculation = false)
+        return
+    }
+
+    // when calculating, use .replace to replace operations with ,+,
     private fun enterDecimal() {
-        if (state.operation == null
-            && !state.number1.contains(".")
-            && state.number1.length in listOf(1, 2, 5, 6)
-            ) {
-            state = state.copy(
-                number1 = state.number1 + "."
-            )
-            return
+        if (state.input.isBlank()) return
+
+        var isFirstNumber = true
+        for (operation in OPERATIONS) { if (state.input.contains(operation)) isFirstNumber = false }
+
+        if (isFirstNumber && state.input.length !in VALID_DEC_INDEX) return
+        if (!isFirstNumber) {
+            val currentNumberAfterOperation = state.input.split(CURRENT_NUMBER_REGEX).last()
+            if (currentNumberAfterOperation.contains(".") || currentNumberAfterOperation.length !in VALID_DEC_INDEX) return
         }
-        if (!state.number2.contains(".")
-            && state.number2.length in listOf(1, 2, 5, 6)
-            ) {
-            state = state.copy(
-                number2 = state.number2 + "."
-            )
-            return
-        }
+
+        state = state.copy(
+            input = state.input + "."
+        )
+        return
     }
 
     private fun enterOunce() {
-        if (state.operation == null && !state.number1.contains("y")
-            && !state.number1.contains(".")
-            && (state.number1.length == 1 || state.number1.length == 2)) {
-            state = state.copy(
-                number1 = state.number1 + "y"
-            )
+        if (state.input.isBlank()) return
+
+        var isFirstNumber = true
+        for (operation in OPERATIONS) { if (state.input.contains(operation)) isFirstNumber = false }
+
+        if (isFirstNumber &&
+            (state.input.contains("y") ||
+                    state.input.contains(".") ||
+                    !(state.input.length == 1 || state.input.length == 2))
+        ) {
             return
         }
-        if (!state.number2.contains("y") && !state.number2.contains(".")
-            && (state.number2.length == 1 || state.number2.length == 2)) {
-            state = state.copy(
-                number2 = state.number2 + "y"
-            )
-            return
+
+        if (!isFirstNumber) {
+            val currentNumber = state.input.split(CURRENT_NUMBER_REGEX).last()
+            if (currentNumber.contains("y") ||
+                currentNumber.contains(".") ||
+                !(currentNumber.length == 1 || currentNumber.length == 2)
+            ) {
+                return
+            }
         }
+
+        state = state.copy(
+            input = state.input + "y"
+        )
     }
 
     private fun enterOperation(operation: CalculatorOperation) {
-        if (state.number1.isNotBlank()) {
-            state = state.copy(operation = operation)
+        if (state.input.isNotBlank() && state.input.last() !in OPERATIONS) {
+            state = state.copy (
+                input = state.input + operation.symbol
+            )
         }
     }
 
-    private fun performCalculation() {
-        val number1 = Formula(stringValue = state.number1)
-        val number2 = Formula(stringValue = state.number2)
+    private fun performCalculation(finalCalculation: Boolean = false) {
+        if (state.input.isNotBlank() && state.input.last() !in OPERATIONS) {
+            var equationString = state.input
+            var startIndex = 0
+            var endIndex = 1
 
-        val result = when (state.operation) {
-            is CalculatorOperation.Add -> number1 + number2
-            is CalculatorOperation.Minus -> number1 - number2
-            is CalculatorOperation.Multiply -> {
-                if (!state.number2.contains("y")) {
-                    number1 * number2
+            while (endIndex <= equationString.length) {
+                if (endIndex == equationString.length) {
+                    val number = Formula(
+                        stringValue = equationString.substring(startIndex, endIndex)
+                    ).numericalStringValue()
+                    equationString = equationString.replaceRange(startIndex, endIndex, number)
+                    break
                 } else {
-                    Formula(stringValue = "")
+                    if (equationString[endIndex] in OPERATIONS) {
+                        val number = Formula(
+                            stringValue = equationString.substring(startIndex, endIndex)
+                        ).numericalStringValue()
+                        equationString = equationString.replaceRange(startIndex, endIndex, number)
+                        startIndex += number.length + 1
+                        endIndex = startIndex + 1
+                    } else {
+                        endIndex++
+                    }
                 }
             }
-            is CalculatorOperation.Divide -> {
-                if (!state.number2.contains("y")) {
-                    number1 / number2
-                } else {
-                    Formula(stringValue = "")
-                }
+
+            equationString = equationString.replace("x", "*")
+            val equation = PostfixParser(equationString).parse()
+
+            state = if (finalCalculation) {
+                state.copy(
+                    input = "",
+                    result = Formula(equation.calculate()).stringValue
+                )
+            } else {
+                state.copy(
+                    result = Formula(equation.calculate()).stringValue
+                )
             }
-            null -> return
         }
-
-        if (result.stringValue.isNotEmpty()) {
-            state = state.copy(
-                number1 = result.stringValue,
-                number2 = "",
-                operation = null
-            )
-        }
-
     }
 
     private fun performDeletion() {
-        when {
-            state.number2.isNotBlank() -> state = state.copy(
-                number2 = state.number2.dropLast(1)
-            )
-            state.operation != null -> state = state.copy(
-                operation = null
-            )
-            state.number1.isNotBlank() -> state = state.copy(
-                number1 = state.number1.dropLast(1)
+        if (state.input.isNotBlank()) {
+            state = state.copy(
+                input = state.input.dropLast(1)
             )
         }
     }
 
     companion object {
-        private const val MAX_NUM_LENGTH = 8
+        private const val MAX_NUM_LENGTH = 24
+        private val OPERATIONS = listOf('+', '-', 'x', '/')
+        private val VALID_DEC_INDEX = listOf(1, 2, 5, 6)
+        private val CURRENT_NUMBER_REGEX = Regex("""[-\\+x]""")
+        private val OPERATIONS_REGEX = Regex("""[+\-/x]""")
     }
 }

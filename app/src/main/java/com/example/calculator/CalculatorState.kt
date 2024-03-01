@@ -1,7 +1,8 @@
 package com.example.calculator
 
 data class CalculatorState(
-    val number1: String = "",
-    val number2: String = "",
+    val values: ArrayList<String> = arrayListOf(),
+    val input: String = "",
+    val result: String = "",
     val operation: CalculatorOperation? = null
 )

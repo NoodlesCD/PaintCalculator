@@ -1,4 +1,4 @@
-package com.example.calculator
+package com.example.calculator.data
 
 /**
  * A class to represent a paint formula.

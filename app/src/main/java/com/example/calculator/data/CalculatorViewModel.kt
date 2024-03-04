@@ -1,4 +1,4 @@
-package com.example.calculator
+package com.example.calculator.data
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,8 +25,25 @@ class CalculatorViewModel: ViewModel() {
             is CalculatorAction.Bracket -> enterBracket()
             is CalculatorAction.ReduceFontSize -> reduceFontSize()
             is CalculatorAction.SetOunces -> setOunces(action.ounces)
-            is CalculatorAction.Clear -> state = CalculatorState(ounces = state.ounces)
+            is CalculatorAction.DeleteHistory -> deleteHistory()
+            is CalculatorAction.ToggleHistoryVisible -> toggleHistory()
+            is CalculatorAction.Clear -> state = CalculatorState(
+                ounceSetting = state.ounceSetting,
+                history = state.history
+            )
         }
+    }
+
+    private fun deleteHistory() {
+        state = state.copy(
+            history = ArrayDeque(0)
+        )
+    }
+
+    private fun toggleHistory() {
+        state = state.copy(
+            historyVisible = !state.historyVisible
+        )
     }
 
     /** Reduces the font size of the user's input when it overflows the screen. */
@@ -39,14 +56,9 @@ class CalculatorViewModel: ViewModel() {
     /**
      * When a user enters a number 0 - 9.
      * The input cannot exceed a length of 32.
-     * The beginning digit or the first digit after an operation cannot be a 0.
      */
     private fun enterNumber(number: Int) {
         if (state.input.length >= MAX_NUM_LENGTH) return
-        if (state.input.isBlank() && number == 0) return
-        if (state.input.isNotBlank()) {
-            if (state.input.last() in OPERATIONS && number == 0) return
-        }
 
         state = state.copy(
             input = state.input + number
@@ -63,11 +75,10 @@ class CalculatorViewModel: ViewModel() {
         if (state.input.isBlank()) return
 
         val isFirstNumber = !state.input.any { it in OPERATIONS }
-        val currentNumber = if (isFirstNumber) {
-            state.input
-        } else {
-            state.input.split(CURRENT_NUMBER_REGEX).last()
-        }
+
+        val currentNumber = if (isFirstNumber) state.input else state.input.split(
+            CURRENT_NUMBER_REGEX
+        ).last()
         if (currentNumber.contains(".") || currentNumber.length !in VALID_DEC_INDEX) return
 
         state = state.copy(
@@ -85,11 +96,9 @@ class CalculatorViewModel: ViewModel() {
         if (state.input.isBlank()) return
 
         val isFirstNumber = !state.input.any { it in OPERATIONS }
-        val currentNumber = if (isFirstNumber) {
-            state.input
-        } else {
-            state.input.split(CURRENT_NUMBER_REGEX).last()
-        }
+        val currentNumber = if (isFirstNumber) state.input else state.input.split(
+            CURRENT_NUMBER_REGEX
+        ).last()
 
         if (currentNumber.contains("y") ||
             currentNumber.contains(".") ||
@@ -130,7 +139,7 @@ class CalculatorViewModel: ViewModel() {
                 openBrackets = 1
             )
         } else {
-            state = if (state.input.last() in OPERATIONS) {
+            state = if (state.input.last() in OPERATIONS || state.input.last() == '(') {
                 state.copy (
                     input = state.input + "(",
                     openBrackets = state.openBrackets + 1
@@ -192,7 +201,7 @@ class CalculatorViewModel: ViewModel() {
             /** Have reached the end of the current number, convert it into numerical equivalent. */
             val number = Formula(
                 stringValue = equationString.substring(startIndex, endIndex),
-                ounceSetting = state.ounces
+                ounceSetting = state.ounceSetting
             ).numericalStringValue()
             equationString = equationString.replaceRange(startIndex, endIndex, number)
 
@@ -206,13 +215,23 @@ class CalculatorViewModel: ViewModel() {
 
         /** Parse the string and calculate. */
         equationString = equationString.replace("x", "*")
-        val equation = PostfixParser(equationString).parse()
+        val result = PostfixParser(equationString).parse().calculate()
 
         state = if (finalCalculation) {
+            val updatedHistory = state.history
+            if (updatedHistory.size == 7) {
+                updatedHistory.removeLast()
+            }
+            updatedHistory.addFirst(Triple(state.input, "= ${
+                Formula(
+                numericalValue = result,
+                ounceSetting = state.ounceSetting).stringValue}", state.ounceSetting.toString()))
+
             state.copy(
+                history = updatedHistory,
                 input = Formula(
-                    numericalValue = equation.calculate(),
-                    ounceSetting = state.ounces
+                    numericalValue = result,
+                    ounceSetting = state.ounceSetting
                 ).stringValue,
                 result = "",
                 inputFontSize = 80.sp
@@ -220,8 +239,8 @@ class CalculatorViewModel: ViewModel() {
         } else {
             state.copy(
                 result = Formula(
-                    numericalValue = equation.calculate(),
-                    ounceSetting = state.ounces
+                    numericalValue = result,
+                    ounceSetting = state.ounceSetting
                 ).stringValue
             )
         }
@@ -263,7 +282,7 @@ class CalculatorViewModel: ViewModel() {
     /** Sets the numerical value of an ounce. Either 48 or 64. */
     private fun setOunces(ounces: Int) {
         state = state.copy(
-            ounces = ounces
+            ounceSetting = ounces
         )
         performCalculation(finalCalculation = false)
     }
